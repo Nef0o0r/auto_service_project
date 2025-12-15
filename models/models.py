@@ -124,6 +124,28 @@ class AutoServiceModels:
             CREATE INDEX IF NOT EXISTS idx_ремонт_неисправность ON Факт_ремонта(ID_Неисправности)
             """
         ]
+        additional_constraints = [
+            # Проверка года выпуска автомобиля
+            """
+            ALTER TABLE Автомобиль 
+            ADD CONSTRAINT check_year 
+            CHECK (Год_выпуска BETWEEN 1900 AND EXTRACT(YEAR FROM CURRENT_DATE) + 1)
+            """,
+
+            # Проверка формата номера госрегистрации (российский формат)
+            """
+            ALTER TABLE Автомобиль
+            ADD CONSTRAINT check_license_plate
+            CHECK (Номер_госрегистрации ~ '^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}$')
+            """,
+
+            # Ограничение на время устранения неисправности (не в будущем)
+            """
+            ALTER TABLE Факт_ремонта
+            ADD CONSTRAINT check_repair_time
+            CHECK (Время_устранения <= CURRENT_TIMESTAMP)
+            """
+        ]
 
         for query in queries:
             try:
