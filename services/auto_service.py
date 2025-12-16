@@ -22,10 +22,68 @@ class AutoService:
         return f"Работник с ID {id_работника} удален"
 
     def update_car_license(self, id_автомобиля, новый_номер):
-        """Изменение номера госрегистрации автомобиля"""
-        query = "UPDATE Автомобиль SET Номер_госрегистрации = %s WHERE ID_Автомобиля = %s"
-        self.db.execute_query(query, (новый_номер, id_автомобиля))
-        return f"Номер автомобиля изменен на {новый_номер}"
+        """Изменение номера автомобиля с полной проверкой"""
+        # 1. Проверить существование авто
+        check_query = "SELECT Номер_госрегистрации, Марка FROM Автомобиль WHERE ID_Автомобиля = %s"
+        car = self.db.execute_query(check_query, (id_автомобиля,), fetch=True)
+
+        if not car:
+            raise ValueError(f"Автомобиль с ID={id_автомобиля} не найден")
+
+        old_license = car[0]['Номер_госрегистрации']
+        brand = car[0]['Марка']
+
+        # 2. Проверить новый номер на уникальность (если изменился)
+        if новый_номер != old_license:
+            duplicate_query = """
+            SELECT ID_Автомобиля, Марка 
+            FROM Автомобиль 
+            WHERE Номер_госрегистрации = %s AND ID_Автомобиля != %s
+            """
+            duplicate = self.db.execute_query(duplicate_query, (новый_номер, id_автомобиля), fetch=True)
+
+            if duplicate:
+                duplicate_id = duplicate[0]['id_Автомобиля']
+                duplicate_brand = duplicate[0]['Марка']
+                raise ValueError(
+                    f"Номер '{новый_номер}' уже используется автомобилем "
+                    f"ID={duplicate_id} ({duplicate_brand})"
+                )
+
+        update_query = "UPDATE Автомобиль SET Номер_госрегистрации = %s WHERE ID_Автомобиля = %s"
+
+        try:
+            rowcount = self.db.execute_query(update_query, (новый_номер, id_автомобиля))
+
+            if rowcount == 0:
+                # Технически сюда не должны попасть, т.к. уже проверили существование
+                return {
+                    'success': False,
+                    'message': f"Автомобиль не был изменен",
+                    'changed': False
+                }
+            else:
+                return {
+                    'success': True,
+                    'message': f"Номер автомобиля {brand} изменен: {old_license} → {новый_номер}",
+                    'changed': True,
+                    'old_license': old_license,
+                    'new_license': новый_номер,
+                    'brand': brand
+                }
+
+        except Exception as e:
+            # Обработка конкретных ошибок БД
+            error_msg = str(e).lower()
+
+            if "check constraint" in error_msg:
+                raise ValueError(f"Номер '{новый_номер}' имеет неверный формат")
+            elif "unique constraint" in error_msg:
+                raise ValueError(f"Номер '{новый_номер}' уже используется другим автомобилем")
+            elif "value too long" in error_msg:
+                raise ValueError("Номер слишком длинный (макс. 15 символов)")
+            else:
+                raise Exception(f"Ошибка при обновлении номера: {str(e)}")
 
     def add_employee(self, фио):
         """Добавление работника"""
@@ -35,56 +93,45 @@ class AutoService:
         return f"Работник '{фио}' добавлен с ID: {result[0]['id_Работника']}"
 
     def add_fault(self, тип_неисправности):
-        """Добавление типа неисправности"""
-        query = "INSERT INTO Неисправность (Тип_неисправности) VALUES (%s) ON CONFLICT (Тип_неисправности) DO NOTHING RETURNING ID_Неисправности"
-        result = self.db.execute_query(query, (тип_неисправности,), fetch=True)
-        if result:
-            # Используем правильное имя колонки: id_Неисправности
-            return f"Неисправность '{тип_неисправности}' добавлена с ID: {result[0]['id_Неисправности']}"
-        return f"Неисправность '{тип_неисправности}' уже существует"
+        """Добавление типа неисправности с валидацией"""
+        # Валидация
+        if not тип_неисправности or not тип_неисправности.strip():
+            raise ValueError("Тип неисправности не может быть пустым")
 
-    def add_repair(self, номер_авто, фио_работника, тип_неисправности, время=None):
-        """Добавление факта ремонта с проверкой данных"""
-        if время is None:
-            время = datetime.now()
+        if len(тип_неисправности.strip()) > 100:  # Ограничение из БД
+            raise ValueError("Тип неисправности слишком длинный (макс. 100 символов)")
 
-        # Сначала проверяем существование всех сущностей
-        car_query = "SELECT ID_Автомобиля FROM Автомобиль WHERE Номер_госрегистрации = %s"
-        employee_query = "SELECT ID_Работника FROM Работник WHERE ФИО = %s"
-        fault_query = "SELECT ID_Неисправности FROM Неисправность WHERE Тип_неисправности = %s"
+        # Сначала проверяем существование
+        check_query = "SELECT ID_Неисправности FROM Неисправность WHERE Тип_неисправности = %s"
+        existing = self.db.execute_query(check_query, (тип_неисправности.strip(),), fetch=True)
 
-        car = self.db.execute_query(car_query, (номер_авто,), fetch=True)
-        if not car:
-            raise ValueError(f"Автомобиль с номером '{номер_авто}' не найден")
+        if existing:
+            fault_id = existing[0]['id_Неисправности']
+            return {
+                'status': 'exists',
+                'message': f"Неисправность '{тип_неисправности}' уже существует",
+                'id': fault_id,
+                'details': f"ID: {fault_id}"
+            }
 
-        employee = self.db.execute_query(employee_query, (фио_работника,), fetch=True)
-        if not employee:
-            raise ValueError(f"Работник '{фио_работника}' не найден")
-
-        fault = self.db.execute_query(fault_query, (тип_неисправности,), fetch=True)
-        if not fault:
-            raise ValueError(f"Тип неисправности '{тип_неисправности}' не найден")
-
-        # Теперь вставляем данные
-        query = """
-        INSERT INTO Факт_ремонта (ID_Автомобиля, ID_Работника, ID_Неисправности, Время_устранения)
-        VALUES (%s, %s, %s, %s)
-        RETURNING ID_Ремонта
+        # Вставляем
+        insert_query = """
+        INSERT INTO Неисправность (Тип_неисправности) 
+        VALUES (%s) 
+        RETURNING ID_Неисправности
         """
 
         try:
-            result = self.db.execute_query(query,
-                                           (car[0]['ID_Автомобиля'],
-                                            employee[0]['ID_Работника'],
-                                            fault[0]['ID_Неисправности'],
-                                            время),
-                                           fetch=True)
-
-            return f"Ремонт зарегистрирован с ID: {result[0]['id_Ремонта']}"
-
+            result = self.db.execute_query(insert_query, (тип_неисправности.strip(),), fetch=True)
+            fault_id = result[0]['id_Неисправности']
+            return {
+                'status': 'created',
+                'message': f"Неисправность '{тип_неисправности}' добавлена",
+                'id': fault_id,
+                'details': f"ID: {fault_id}"
+            }
         except Exception as e:
-            raise Exception(f"Ошибка при регистрации ремонта: {str(e)}")
-
+            raise Exception(f"Ошибка при добавлении неисправности: {str(e)}")
     # ЗАПРОСЫ ДЛЯ ДИСПЕТЧЕРА
 
     def get_owner_by_license(self, номер_госрегистрации):
