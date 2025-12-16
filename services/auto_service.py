@@ -44,22 +44,46 @@ class AutoService:
         return f"Неисправность '{тип_неисправности}' уже существует"
 
     def add_repair(self, номер_авто, фио_работника, тип_неисправности, время=None):
-        """Добавление факта ремонта"""
+        """Добавление факта ремонта с проверкой данных"""
         if время is None:
             время = datetime.now()
 
+        # Сначала проверяем существование всех сущностей
+        car_query = "SELECT ID_Автомобиля FROM Автомобиль WHERE Номер_госрегистрации = %s"
+        employee_query = "SELECT ID_Работника FROM Работник WHERE ФИО = %s"
+        fault_query = "SELECT ID_Неисправности FROM Неисправность WHERE Тип_неисправности = %s"
+
+        car = self.db.execute_query(car_query, (номер_авто,), fetch=True)
+        if not car:
+            raise ValueError(f"Автомобиль с номером '{номер_авто}' не найден")
+
+        employee = self.db.execute_query(employee_query, (фио_работника,), fetch=True)
+        if not employee:
+            raise ValueError(f"Работник '{фио_работника}' не найден")
+
+        fault = self.db.execute_query(fault_query, (тип_неисправности,), fetch=True)
+        if not fault:
+            raise ValueError(f"Тип неисправности '{тип_неисправности}' не найден")
+
+        # Теперь вставляем данные
         query = """
         INSERT INTO Факт_ремонта (ID_Автомобиля, ID_Работника, ID_Неисправности, Время_устранения)
-        SELECT а.ID_Автомобиля, р.ID_Работника, н.ID_Неисправности, %s
-        FROM Автомобиль а, Работник р, Неисправность н
-        WHERE а.Номер_госрегистрации = %s AND р.ФИО = %s AND н.Тип_неисправности = %s
+        VALUES (%s, %s, %s, %s)
         RETURNING ID_Ремонта
         """
-        result = self.db.execute_query(query, (время, номер_авто, фио_работника, тип_неисправности), fetch=True)
-        if result:
-            # Используем правильное имя колонки: id_Ремонта
+
+        try:
+            result = self.db.execute_query(query,
+                                           (car[0]['ID_Автомобиля'],
+                                            employee[0]['ID_Работника'],
+                                            fault[0]['ID_Неисправности'],
+                                            время),
+                                           fetch=True)
+
             return f"Ремонт зарегистрирован с ID: {result[0]['id_Ремонта']}"
-        return "Ошибка: проверьте правильность введенных данных"
+
+        except Exception as e:
+            raise Exception(f"Ошибка при регистрации ремонта: {str(e)}")
 
     # ЗАПРОСЫ ДЛЯ ДИСПЕТЧЕРА
 
