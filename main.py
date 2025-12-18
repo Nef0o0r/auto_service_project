@@ -44,7 +44,7 @@ def wait_for_continue():
     input("\nНажмите Enter для продолжения...")
 
 
-def test_data_menu(models, service, logger, username):
+def admin_test_data_menu(models, service, logger, username):
     """Меню управления тестовыми данными"""
     while True:
         print("\n" + "=" * 50)
@@ -704,8 +704,7 @@ def admin_menu(auth, logger, backup_service, models, service, username):
             main_dispatcher_menu(logger, service, username, "admin")
 
         elif choice == '5':
-            if not test_data_menu(models, service, logger, username):
-                return False
+            admin_test_data_menu(models, service, logger, username)
 
         else:
             print("Неверный выбор")
@@ -715,11 +714,8 @@ def admin_menu(auth, logger, backup_service, models, service, username):
 
 def dispatcher_menu(logger, models, service, username):
     """Меню диспетчера"""
-    # Сначала меню тестовых данных
-    if not test_data_menu(models, service, logger, username):
-        return False
+    logger.log(username, "DISPATCHER_SESSION_START", "Dispatcher session started")
 
-    # Затем основное меню диспетчера
     main_dispatcher_menu(logger, service, username, "dispatcher")
     return True
 
