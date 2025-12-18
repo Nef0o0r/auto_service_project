@@ -1,14 +1,22 @@
 {
   "admin": {
-    "password": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
+    "password": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
     "role": "admin"
   },
   "dispatcher": {
-    "password": "693c10e4281fc0e6c4ac168f177078c815c2e7198f9eb1a1c01d31e7c17b7820",
+    "password": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
     "role": "dispatcher"
   },
-  "Владимир": {
-    "password": "ee79976c9380d5e337fc1c095ece8c8f22f91f306ceeb161fa51fecede2c4ba1",
+  "Дмитрий": {
+    "password": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
+    "role": "admin"
+  },
+  "ДмитрийДиспетчер": {
+    "password": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
+    "role": "dispatcher"
+  },
+  "NewUser": {
+    "password": "089542505d659cecbb988bb5ccff5bccf85be2dfa8c221359079aee2531298bb",
     "role": "dispatcher"
   }
 }

@@ -15,6 +15,83 @@ class AutoService:
         # Используем правильное имя колонки: id_Владельца
         return f"Владелец '{фио}' успешно добавлен с ID: {result[0]['id_Владельца']}"
 
+    def add_repair(self, номер_авто, фио_работника, тип_неисправности):
+        """Регистрация ремонта"""
+        try:
+            # 1. Находим ID автомобиля
+            car_query = """
+            SELECT а.ID_Автомобиля, в.ФИО as владелец
+            FROM Автомобиль а
+            JOIN Владелец в ON а.ID_Владельца = в.ID_Владельца
+            WHERE а.Номер_госрегистрации = %s
+            """
+            car_result = self.db.execute_query(car_query, (номер_авто,), fetch=True)
+
+            if not car_result:
+                raise ValueError(f"Автомобиль с номером '{номер_авто}' не найден.")
+
+            id_авто = car_result[0]['id_Автомобиля']
+            владелец = car_result[0]['владелец']
+
+            # 2. Находим ID работника
+            employee_query = "SELECT ID_Работника FROM Работник WHERE ФИО = %s"
+            employee_result = self.db.execute_query(employee_query, (фио_работника,), fetch=True)
+
+            if not employee_result:
+                raise ValueError(f"Работник '{фио_работника}' не найден.")
+
+            id_работника = employee_result[0]['id_Работника']
+
+            # 3. Находим ID неисправности (создаём, если не существует)
+            fault_query = "SELECT ID_Неисправности FROM Неисправность WHERE Тип_неисправности = %s"
+            fault_result = self.db.execute_query(fault_query, (тип_неисправности,), fetch=True)
+
+            if not fault_result:
+                # Автоматически создаем неисправность, если её нет
+                fault_create = """
+                INSERT INTO Неисправность (Тип_неисправности) 
+                VALUES (%s) 
+                RETURNING ID_Неисправности
+                """
+                fault_result = self.db.execute_query(fault_create, (тип_неисправности,), fetch=True)
+
+            id_неисправности = fault_result[0]['id_Неисправности']
+
+            # 4. Добавляем запись о ремонте
+            repair_query = """
+            INSERT INTO Факт_ремонта (ID_Автомобиля, ID_Работника, ID_Неисправности, Время_устранения) 
+            VALUES (%s, %s, %s, CURRENT_TIMESTAMP) 
+            RETURNING ID_Ремонта
+            """
+
+            result = self.db.execute_query(
+                repair_query,
+                (id_авто, id_работника, id_неисправности),
+                fetch=True
+            )
+
+            repair_id = result[0]['id_Ремонта']
+            return {
+                'success': True,
+                'message': f"Ремонт #{repair_id} успешно зарегистрирован",
+                'details': f"Автомобиль: {номер_авто}, Владелец: {владелец}, Работник: {фио_работника}, Неисправность: {тип_неисправности}"
+            }
+
+        except Exception as e:
+            # Анализ конкретных ошибок
+            error_msg = str(e).lower()
+
+            if "foreign key constraint" in error_msg:
+                if "id_автомобиля" in error_msg:
+                    raise ValueError(f"Автомобиль с номером '{номер_авто}' не существует")
+                elif "id_работника" in error_msg:
+                    raise ValueError(f"Работник '{фио_работника}' не существует")
+                elif "id_неисправности" in error_msg:
+                    raise ValueError(f"Неисправность '{тип_неисправности}' не существует")
+            elif "unique constraint" in error_msg:
+                raise ValueError("Такой ремонт уже зарегистрирован")
+            else:
+                raise Exception(f"Ошибка при регистрации ремонта: {str(e)}")
     def delete_employee(self, id_работника):
         """Удаление информации о работнике станции"""
         query = "DELETE FROM Работник WHERE ID_Работника = %s"
@@ -156,7 +233,7 @@ class AutoService:
     def get_fixed_faults_by_owner(self, фио_владельца):
         """Перечень устраненных неисправностей автомобиля данного владельца"""
         query = """
-        SELECT DISTINCT н.Тип_неисправности
+        SELECT DISTINCT н.Тип_неисправности as тип_неисправности
         FROM Факт_ремонта фр
         JOIN Автомобиль а ON фр.ID_Автомобиля = а.ID_Автомобиля
         JOIN Владелец в ON а.ID_Владельца = в.ID_Владельца
@@ -179,6 +256,62 @@ class AutoService:
         ORDER BY фр.Время_устранения DESC
         """
         return self.db.execute_query(query, (фио_владельца, тип_неисправности), fetch=True)
+
+    def add_car(self, номер_госрегистрации, марка, год_выпуска, изготовитель, фио_владельца):
+        """Добавление автомобиля с указанием владельца"""
+        try:
+            # 1. Находим ID владельца
+            owner_query = "SELECT ID_Владельца FROM Владелец WHERE ФИО = %s"
+            owner_result = self.db.execute_query(owner_query, (фио_владельца,), fetch=True)
+
+            if not owner_result:
+                raise ValueError(f"Владелец '{фио_владельца}' не найден. Сначала добавьте владельца.")
+
+            id_владельца = owner_result[0]['id_Владельца']
+
+            # 2. Проверяем уникальность номера
+            check_query = "SELECT ID_Автомобиля FROM Автомобиль WHERE Номер_госрегистрации = %s"
+            existing = self.db.execute_query(check_query, (номер_госрегистрации,), fetch=True)
+
+            if existing:
+                raise ValueError(f"Автомобиль с номером '{номер_госрегистрации}' уже существует")
+
+            # 3. Проверяем год выпуска
+            текущий_год = datetime.now().year
+            if not (1900 <= год_выпуска <= текущий_год + 1):
+                raise ValueError(f"Год выпуска должен быть между 1900 и {текущий_год + 1}")
+
+            # 4. Добавляем автомобиль
+            insert_query = """
+            INSERT INTO Автомобиль (Номер_госрегистрации, Марка, Год_выпуска, Изготовитель, ID_Владельца) 
+            VALUES (%s, %s, %s, %s, %s) 
+            RETURNING ID_Автомобиля
+            """
+
+            result = self.db.execute_query(
+                insert_query,
+                (номер_госрегистрации, марка, год_выпуска, изготовитель, id_владельца),
+                fetch=True
+            )
+
+            car_id = result[0]['id_Автомобиля']
+            return {
+                'success': True,
+                'message': f"Автомобиль {марка} ({номер_госрегистрации}) успешно добавлен",
+                'id': car_id,
+                'details': f"ID автомобиля: {car_id}, Владелец: {фио_владельца}"
+            }
+
+        except Exception as e:
+            if "check_license_plate" in str(e).lower():
+                raise ValueError(
+                    f"Номер '{номер_госрегистрации}' имеет неверный формат (требуется российский формат: А123ВС77)")
+            elif "unique constraint" in str(e).lower():
+                raise ValueError(f"Номер '{номер_госрегистрации}' уже используется")
+            elif "check_year" in str(e).lower():
+                raise ValueError(f"Год выпуска {год_выпуска} вне допустимого диапазона")
+            else:
+                raise Exception(f"Ошибка при добавлении автомобиля: {str(e)}")
 
     def get_cars_repaired_by_employee(self, фио_работника):
         """Какие автомобили ремонтировал данный работник станции"""
