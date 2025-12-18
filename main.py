@@ -701,7 +701,7 @@ def admin_menu(auth, logger, backup_service, models, service, username):
 
         elif choice == '4':
             # Переход к основному меню диспетчера
-            main_dispatcher_menu(logger, service, username)
+            main_dispatcher_menu(logger, service, username, "admin")
 
         elif choice == '5':
             if not test_data_menu(models, service, logger, username):
@@ -720,21 +720,27 @@ def dispatcher_menu(logger, models, service, username):
         return False
 
     # Затем основное меню диспетчера
-    main_dispatcher_menu(logger, service, username)
+    main_dispatcher_menu(logger, service, username, "dispatcher")
     return True
 
 
-def main_dispatcher_menu(logger, service, username):
+def main_dispatcher_menu(logger, service, username, role="dispatcher"):
     """Основное меню диспетчера"""
     while True:
         print("\n" + "=" * 50)
-        print("ГЛАВНОЕ МЕНЮ ДИСПЕТЧЕРА")
+        if role == "admin":
+            print("ГЛАВНОЕ МЕНЮ ДИСПЕТЧЕРА (версия АДМИНИСТРАТОРА)")
+        else:
+            print("ГЛАВНОЕ МЕНЮ ДИСПЕТЧЕРА")
         print("=" * 50)
         print("1 - Операции с данными")
         print("2 - Запросы диспетчера")
         print("3 - Справки и отчеты")
         print("4 - Просмотр всех данных")
-        print("0 - Выход")
+        if role == "admin":
+            print("0 - Назад")
+        else:
+            print("0 - Выход")
 
         choice = input("\nВыберите действие: ").strip()
 
@@ -755,7 +761,6 @@ def main_dispatcher_menu(logger, service, username):
 
         else:
             print("Неверный выбор")
-
 
 def main():
     # Инициализация систем
