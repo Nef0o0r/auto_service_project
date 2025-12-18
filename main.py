@@ -54,7 +54,7 @@ def test_data_menu(models, service, logger, username):
         print("2 - Добавить тестовые данные (очистить существующие)")
         print("3 - Очистить все данные")
         print("4 - Проверить состояние базы данных")
-        print("0 - Выйти из программы")
+        print("0 - Назад")
 
         choice = input("\nВыберите действие: ").strip()
 
