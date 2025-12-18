@@ -206,12 +206,10 @@ def operations_menu(service, logger, username):
         elif choice == '5':
             print("\n--- УДАЛЕНИЕ РАБОТНИКА ---")
             try:
-                # Покажем всех работников для удобства
                 employees = service.get_all_employees()
                 if employees:
                     print("\nСписок работников:")
                     for emp in employees:
-                        # Используем правильные имена колонок из диагностики
                         employee_id = emp.get('id_Работника')
                         employee_name = emp.get('ФИО')
                         print(f"  ID: {employee_id} - {employee_name}")
@@ -233,12 +231,12 @@ def operations_menu(service, logger, username):
         elif choice == '6':
             print("\n--- ИЗМЕНЕНИЕ НОМЕРА АВТОМОБИЛЯ ---")
             try:
-                # Покажем все автомобили для удобства
+
                 cars = service.get_all_cars()
                 if cars:
                     print("\nСписок автомобилей:")
                     for car in cars:
-                        # Используем правильные имена колонок из диагностики
+
                         car_id = car.get('id_Автомобиля')
                         license_plate = car.get('Номер_госрегистрации')
                         brand = car.get('Марка')
@@ -497,7 +495,6 @@ def view_data_menu(service, logger, username):
 
         elif sub_choice == '5':
             try:
-                # Используем правильные имена колонок
                 results = service.db.execute_query("""
                     SELECT фр.id_Ремонта, в.ФИО as владелец, а.Номер_госрегистрации, а.Марка, 
                            р.ФИО as работник, н.Тип_неисправности, фр.Время_устранения
@@ -700,7 +697,6 @@ def admin_menu(auth, logger, backup_service, models, service, username):
             view_logs_menu(logger)
 
         elif choice == '4':
-            # Переход к основному меню диспетчера
             main_dispatcher_menu(logger, service, username, "admin")
 
         elif choice == '5':

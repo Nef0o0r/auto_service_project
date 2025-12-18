@@ -1,4 +1,3 @@
-# config/auth.py
 import hashlib
 import json
 import os
@@ -16,7 +15,7 @@ class AuthManager:
             with open(self.auth_file, "r", encoding="utf-8") as f:
                 return json.load(f)
         else:
-            # Создаем стандартных пользователей
+            # Создание пользователей по умолчанию
             default_users = {
                 "admin": {
                     "password": self.hash_password("admin123"),

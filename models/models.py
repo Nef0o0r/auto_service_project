@@ -11,7 +11,7 @@ class AutoServiceModels:
         print("\n=== ДИАГНОСТИКА БАЗЫ ДАННЫХ ===")
 
         try:
-            # Проверяем существование таблиц
+            # Проверка существование таблиц
             tables_query = """
             SELECT table_name 
             FROM information_schema.tables 
@@ -42,7 +42,7 @@ class AutoServiceModels:
     def is_database_empty(self):
         """Проверяет, пустая ли база данных"""
         try:
-            # Проверяем все основные таблицы
+            # Проверка всех основные таблицы
             tables = ['Владелец', 'Автомобиль', 'Работник', 'Неисправность', 'Факт_ремонта']
 
             for table in tables:
@@ -132,7 +132,7 @@ class AutoServiceModels:
             CHECK (Год_выпуска BETWEEN 1900 AND EXTRACT(YEAR FROM CURRENT_DATE) + 1)
             """,
 
-            # Проверка формата номера госрегистрации (российский формат)
+            # Проверка формата номера госрегистрации
             """
             ALTER TABLE Автомобиль
             ADD CONSTRAINT check_license_plate
@@ -162,10 +162,7 @@ class AutoServiceModels:
         print("Добавление тестовых данных...")
 
         try:
-            # Сначала очистим все данные для чистого состояния
             self.clear_test_data()
-
-            # Вставляем данные в правильном порядке с учетом зависимостей
 
             # 1. Владельцы
             print("Добавление владельцев...")
@@ -183,7 +180,6 @@ class AutoServiceModels:
                     fetch=True
                 )
 
-                # Используем правильное имя колонки: id_Владельца
                 if result and len(result) > 0:
                     owner_ids[фио] = result[0]['id_Владельца']
                     print(f"  Добавлен владелец: {фио} (ID: {owner_ids[фио]})")

@@ -33,7 +33,7 @@ class AutoService:
         old_license = car[0]['Номер_госрегистрации']
         brand = car[0]['Марка']
 
-        # 2. Проверить новый номер на уникальность (если изменился)
+        # 2. Проверка нового номера на уникальность (если изменился)
         if новый_номер != old_license:
             duplicate_query = """
             SELECT ID_Автомобиля, Марка 
@@ -89,19 +89,18 @@ class AutoService:
         """Добавление работника"""
         query = "INSERT INTO Работник (ФИО) VALUES (%s) RETURNING ID_Работника"
         result = self.db.execute_query(query, (фио,), fetch=True)
-        # Используем правильное имя колонки: id_Работника
         return f"Работник '{фио}' добавлен с ID: {result[0]['id_Работника']}"
 
     def add_fault(self, тип_неисправности):
         """Добавление типа неисправности с валидацией"""
-        # Валидация
+
         if not тип_неисправности or not тип_неисправности.strip():
             raise ValueError("Тип неисправности не может быть пустым")
 
-        if len(тип_неисправности.strip()) > 100:  # Ограничение из БД
+        if len(тип_неисправности.strip()) > 100:
             raise ValueError("Тип неисправности слишком длинный (макс. 100 символов)")
 
-        # Сначала проверяем существование
+        # Проверка существования
         check_query = "SELECT ID_Неисправности FROM Неисправность WHERE Тип_неисправности = %s"
         existing = self.db.execute_query(check_query, (тип_неисправности.strip(),), fetch=True)
 
@@ -114,7 +113,6 @@ class AutoService:
                 'details': f"ID: {fault_id}"
             }
 
-        # Вставляем
         insert_query = """
         INSERT INTO Неисправность (Тип_неисправности) 
         VALUES (%s) 
@@ -132,6 +130,7 @@ class AutoService:
             }
         except Exception as e:
             raise Exception(f"Ошибка при добавлении неисправности: {str(e)}")
+
     # ЗАПРОСЫ ДЛЯ ДИСПЕТЧЕРА
 
     def get_owner_by_license(self, номер_госрегистрации):

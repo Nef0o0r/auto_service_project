@@ -19,7 +19,7 @@ class Database:
                 password=os.getenv('DB_PASSWORD', 'password'),
                 port=os.getenv('DB_PORT', '5432')
             )
-            # Устанавливаем autocommit после подключения
+
             self.connection.autocommit = True
         return self.connection
 
@@ -27,7 +27,7 @@ class Database:
         if self.connection and not self.connection.closed:
             self.connection.close()
 
-    # В config/database.py изменим execute_query
+
     def execute_query(self, query, params=None, fetch=False, transaction=False):
         conn = self.get_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -58,8 +58,6 @@ class Database:
             if transaction:
                 conn.autocommit = True
 
-
-# Добавим в config/database.py
 class SecurityManager:
     def __init__(self):
         self.db = Database()
@@ -88,8 +86,6 @@ class SecurityManager:
 
     def authenticate_user(self, username, password):
         """Аутентификация пользователя"""
-        # Здесь должна быть реализация проверки через систему ролей PostgreSQL
-        # Для упрощения можно использовать словарь
         users = {
             'dispatcher': {'role': 'dispatcher', 'password': 'dispatcher_pass'},
             'admin': {'role': 'admin', 'password': 'admin_pass'}
